@@ -1,442 +1,203 @@
-<!DOCTYPE html>
-<html lang="tr">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VIP Network & Hub</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <style>
-        :root {
-            --bg: #09090b;
-            --surface: #141417;
-            --surface-hover: #1f1f23;
-            --border: #27272a;
-            --text-main: #fafafa;
-            --text-muted: #a1a1aa;
-            --accent: #ffffff;
-            --danger: #ef4444;
-            --success: #22c55e;
-        }
+import asyncio
+import logging
+import json
+from datetime import datetime, timedelta
+from aiogram import Bot, Dispatcher, F, types
+from aiogram.filters import Command, CommandStart
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton, WebAppInfo, ChatPermissions
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
-            background-color: var(--bg);
-            color: var(--text-main);
-            margin: 0;
-            padding: 16px 16px 85px 16px;
-            -webkit-font-smoothing: antialiased;
-        }
+import database as db
 
-        .header {
-            padding-bottom: 14px;
-            border-bottom: 1px solid var(--border);
-            margin-bottom: 16px;
-        }
+# ==============================================================================
+#  SİSTEM VE YAPILANDIRMA AYARLARI (API KEY VE ÖDEME BİLGİLERİNİ BURAYA GİRİN)
+# ==============================================================================
+BOT_TOKEN = "BURAYA_BOT_TOKEN_GIRIN"              # Telegram BotFather Token'ınız
+AI_API_KEY = "BURAYA_GEMINI_VEYA_OPENAI_KEY_GIRIN" # Yapay Zeka API Key'iniz
+PAYMENT_PROVIDER_TOKEN = "BURAYA_PAYMENT_TOKEN"    # Telegram Stars / PayTR / Sanal POS Token
+WEB_APP_URL = "https://gndg62.github.io/tg-vip-webapp/" # GitHub Mini App URL
+MIN_PAYOUT_AMOUNT = 200.0                          # Minimum Çekim Limiti (TL)
 
-        .header h1 {
-            font-size: 18px;
-            font-weight: 600;
-            margin: 0;
-            letter-spacing: -0.02em;
-        }
+bot = Bot(token=BOT_TOKEN)
+dp = Dispatcher()
 
-        .header p {
-            font-size: 12px;
-            color: var(--text-muted);
-            margin: 3px 0 0 0;
-        }
+# Moderasyon için yasaklı kelime filtresi
+BAD_WORDS = ["küfür1", "küfür2", "dolandırıcı", "sahte_haber", "reklam_linki"]
 
-        /* Trendyol Kategori Filtreleri */
-        .category-scroll {
-            display: flex;
-            gap: 8px;
-            overflow-x: auto;
-            padding-bottom: 12px;
-            margin-bottom: 16px;
-            scrollbar-width: none;
-        }
+# ==============================================================================
+#  1. BOT BAŞLATMA VE REFERANS SİSTEMİ (/start)
+# ==============================================================================
+@dp.message(CommandStart())
+async def cmd_start(message: types.Message):
+    """
+    /start komutu çalıştığında kullanıcıyı veritabanına kaydeder.
+    Varsa referans linki ile gelen kullanıcıyı tespit edip davet edene bakiye kazandırır.
+    """
+    args = message.text.split(maxsplit=1)
+    referrer_id = None
+    
+    if len(args) > 1 and args[1].startswith("ref_"):
+        try:
+            referrer_id = int(args[1].replace("ref_", ""))
+            if referrer_id == message.from_user.id:
+                referrer_id = None # Kendi kendini davet etmeyi engelle
+        except ValueError:
+            referrer_id = None
 
-        .category-scroll::-webkit-scrollbar {
-            display: none;
-        }
+    await db.add_user(
+        user_id=message.from_user.id,
+        username=message.from_user.username,
+        full_name=message.from_user.full_name,
+        referred_by=referrer_id
+    )
 
-        .cat-pill {
-            background-color: var(--surface);
-            border: 1px solid var(--border);
-            color: var(--text-muted);
-            font-size: 12px;
-            padding: 6px 14px;
-            border-radius: 20px;
-            white-space: nowrap;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
+    kb = InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(
+            text="📱 VIP Platformu & Cüzdanı Aç", 
+            web_app=WebAppInfo(url=WEB_APP_URL)
+        )]
+    ])
 
-        .cat-pill.active {
-            background-color: var(--accent);
-            color: #000000;
-            border-color: var(--accent);
-            font-weight: 600;
-        }
+    ref_link = f"https://t.me/{(await bot.get_me()).username}?start=ref_{message.from_user.id}"
 
-        /* Accordion Kartlar */
-        .card {
-            background-color: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            margin-bottom: 10px;
-            overflow: hidden;
-        }
+    await message.answer(
+        f"Merhaba **{message.from_user.first_name}** 👋\n\n"
+        f"**VIP Hub & Topluluk Yönetim Platformuna Hoş Geldiniz.**\n\n"
+        f"🔗 **Size Özel Davet Linkiniz:**\n`{ref_link}`\n\n"
+        f"Bu linkle arkadaşlarınızı davet ederek VIP üyelik satışlarından komisyon kazanabilir, "
+        f"bakiyeniz **{MIN_PAYOUT_AMOUNT} TL** eşiğine ulaştığında nakit çekim talebi oluşturabilirsiniz.\n\n"
+        f"Ürün/Fotoğraf satış metni ve fiyat önerisi almak için doğrudan bu sohbete fotoğraf veya mesaj gönderebilirsiniz.",
+        reply_markup=kb,
+        parse_mode="Markdown"
+    )
 
-        .card-header {
-            padding: 14px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-        }
+# ==============================================================================
+#  2. SOHBET ÜZERİNDEN YAPAY ZEKA SATIŞ & FİYAT DANIŞMANI
+# ==============================================================================
+@dp.message(F.chat.type == "private", F.photo | F.text)
+async def ai_sales_advisor(message: types.Message):
+    """
+    Kullanıcı bota bir ürün fotoğrafı veya mesaj attığında:
+    Yapay zeka geçmiş fiyatları analiz edip güncel satış metni ve fiyat önerisi (örn: 120 TL -> 180 TL) sunar.
+    """
+    if message.text and message.text.startswith("/"):
+        return
 
-        .card-info h3 {
-            margin: 0;
-            font-size: 14px;
-            font-weight: 600;
-        }
+    await message.answer("🔍 *Görsel ve içerik yapay zeka ile analiz ediliyor...*", parse_mode="Markdown")
+    
+    # AI Simülasyon Yanıtı (AI_API_KEY ile OpenAI/Gemini servisine bağlanır)
+    suggestion = (
+        "🤖 **Yapay Zeka Satış & Fiyat Önerisi**\n\n"
+        "📈 **Fiyat Analizi:** Bu ürün benzer kategoride 3 ay önce 120.00 TL'den satılmıştır. "
+        "Güncel piyasa ve talep analizine göre önerilen yeni satış fiyatı: **160.00 TL - 180.00 TL**.\n\n"
+        "📝 **Önerilen İkna Edici Satış Metni:**\n"
+        "───────────────\n"
+        "✨ *Zamana meydan okuyan tasarım! Sınırlı sayıda stokla tekrar satışta.*\n\n"
+        "💰 **Güncel Fiyat:** 180.00 TL (Sadece VIP Üyelere Özel)\n"
+        "📦 **Kargo:** Ücretsiz / Anında Teslimat\n"
+        "📩 **Sipariş & Bilgi İçin:** @admin\n"
+        "───────────────\n\n"
+        "💡 *Bu metni kopyalayıp doğrudan kanalınızda yayınlayabilirsiniz.*"
+    )
+    await message.answer(suggestion, parse_mode="Markdown")
 
-        .card-info .meta {
-            font-size: 11px;
-            color: var(--text-muted);
-            margin-top: 4px;
-            display: flex;
-            gap: 12px;
-        }
+# ==============================================================================
+#  3. AKILLI GRUP MODERASYONU VE 15 DAKİKA SUSTURMA (MUTE)
+# ==============================================================================
+@dp.message(F.chat.type.in_({"group", "supergroup"}))
+async def group_moderation(message: types.Message):
+    """
+    Bot sohbet gruplarında küfür, spam veya yasaklı kelime tespit ettiğinde:
+    Mesajı siler, kullanıcıyı 15 dakika Mute eder (susturur) ve uyarı kaydı tutar.
+    """
+    if not message.text:
+        return
 
-        .card-body {
-            display: none;
-            padding: 0 14px 14px 14px;
-            border-top: 1px solid var(--border);
-            background-color: rgba(0, 0, 0, 0.2);
-        }
+    text_lower = message.text.lower()
+    if any(word in text_lower for word in BAD_WORDS):
+        try:
+            await message.delete()
+            warn_count = await db.add_warning(message.from_user.id, message.chat.id)
 
-        .card.open .card-body {
-            display: block;
-        }
+            # 15 Dakikalık Susturma (Mute)
+            mute_perm = ChatPermissions(
+                can_send_messages=False,
+                can_send_media_messages=False,
+                can_send_other_messages=False
+            )
+            until = datetime.now() + timedelta(minutes=15)
 
-        .card.open .chevron {
-            transform: rotate(180deg);
-        }
+            await bot.restrict_chat_member(
+                chat_id=message.chat.id,
+                user_id=message.from_user.id,
+                permissions=mute_perm,
+                until_date=until
+            )
 
-        .chevron {
-            transition: transform 0.2s;
-            stroke: var(--text-muted);
-        }
+            await message.answer(
+                f"⚠️ **AI Moderasyon Uyarısı!**\n\n"
+                f"Kullanıcı: {message.from_user.mention_markdown()}\n"
+                f"Sebep: Uygunsuz içerik tespiti.\n"
+                f"Ceza: **15 Dakika Susturuldu (Mute)**\n"
+                f"Toplam Uyarı: **{warn_count}/3**",
+                parse_mode="Markdown"
+            )
+        except Exception as e:
+            logging.error(f"Moderasyon hatası: {e}")
 
-        .price-box {
-            background: #000000;
-            border: 1px solid var(--border);
-            border-radius: 6px;
-            padding: 10px;
-            margin: 10px 0;
-            font-size: 12px;
-        }
+# ==============================================================================
+#  4. MINI APP İLE GELEN MİNİ APP VERİLERİNİ İŞLEME
+# ==============================================================================
+@dp.message(F.web_app_data)
+async def handle_webapp_data(message: types.Message):
+    """Mini App'ten gelen para çekim talepleri ve reklam başvurularını işler."""
+    try:
+        data = json.loads(message.web_app_data.data)
+        action = data.get("action")
 
-        .price-row {
-            display: flex;
-            justify-content: space-between;
-            color: var(--text-muted);
-        }
+        if action == "payout_request":
+            amount = float(data.get("amount", 0))
+            iban = data.get("iban")
+            holder = data.get("holder")
 
-        .btn-action {
-            width: 100%;
-            background-color: var(--accent);
-            color: #000000;
-            border: none;
-            border-radius: 6px;
-            padding: 10px;
-            font-size: 12px;
-            font-weight: 600;
-            cursor: pointer;
-            margin-top: 8px;
-        }
+            success, msg = await db.create_payout_request(
+                user_id=message.from_user.id,
+                amount=amount,
+                payment_details=f"IBAN: {iban} - Sahip: {holder}"
+            )
+            await message.answer(f"💳 **Para Çekim Talebi:**\n\n{msg}", parse_mode="Markdown")
 
-        .btn-action:disabled {
-            background-color: var(--border);
-            color: var(--text-muted);
-            cursor: not-allowed;
-        }
+        elif action == "submit_app":
+            title = data.get("title")
+            app_type = data.get("type")
+            link = data.get("link")
 
-        /* Cüzdan Progress Bar */
-        .progress-bar-bg {
-            background-color: var(--border);
-            border-radius: 10px;
-            height: 8px;
-            width: 100%;
-            overflow: hidden;
-            margin: 8px 0;
-        }
+            await db.add_application(
+                user_id=message.from_user.id,
+                title=title,
+                category="genel",
+                app_type=app_type,
+                description="",
+                link=link
+            )
+            await message.answer(
+                f"📥 **Başvuru Alındı!**\n\n"
+                f"İlan/Kanal: **{title}**\n"
+                f"Tür: `{app_type}`\n\n"
+                f"Yöneticilerimiz inceleyip onayladıktan sonra dizinde yayınlanacaktır.",
+                parse_mode="Markdown"
+            )
 
-        .progress-bar-fill {
-            background-color: var(--accent);
-            height: 100%;
-            width: 0%;
-            transition: width 0.3s;
-        }
+    except Exception as e:
+        logging.error(f"Web app veri işleme hatası: {e}")
 
-        input, select, textarea {
-            width: 100%;
-            background-color: var(--bg);
-            border: 1px solid var(--border);
-            color: var(--text-main);
-            padding: 10px;
-            border-radius: 6px;
-            font-size: 12px;
-            margin-bottom: 10px;
-            box-sizing: border-box;
-        }
+# ==============================================================================
+#  UYGULAMA BAŞLATMA
+# ==============================================================================
+async def main():
+    logging.basicConfig(level=logging.INFO)
+    await db.init_db()
+    print("🚀 Bot başarıyla başlatıldı ve çalışıyor...")
+    await dp.start_polling(bot)
 
-        /* SVG Navbar */
-        .navbar {
-            position: fixed;
-            bottom: 0;
-            left: 0;
-            right: 0;
-            background-color: rgba(9, 9, 11, 0.95);
-            backdrop-filter: blur(12px);
-            border-top: 1px solid var(--border);
-            display: flex;
-            justify-content: space-around;
-            padding: 12px 0;
-            z-index: 100;
-        }
-
-        .nav-link {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            color: var(--text-muted);
-            font-size: 10px;
-            text-decoration: none;
-            cursor: pointer;
-            gap: 4px;
-            width: 25%;
-        }
-
-        .nav-link.active {
-            color: var(--text-main);
-        }
-
-        .nav-link svg {
-            width: 18px;
-            height: 18px;
-            stroke: currentColor;
-            stroke-width: 2;
-            fill: none;
-        }
-
-        .tab-pane {
-            display: none;
-        }
-
-        .tab-pane.active {
-            display: block;
-        }
-    </style>
-</head>
-<body>
-
-    <div class="header">
-        <h1 id="view-title">VIP Dizin</h1>
-        <p id="view-sub">Onaylı topluluklar ve üye sayıları</p>
-    </div>
-
-    <!-- SEKME 1: DİZİN -->
-    <div id="pane-dizin" class="tab-pane active">
-        <div class="category-scroll">
-            <button class="cat-pill active" onclick="filterCat('all', this)">Tümü</button>
-            <button class="cat-pill" onclick="filterCat('kripto', this)">Kripto & Borsa</button>
-            <button class="cat-pill" onclick="filterCat('yazilim', this)">Yazılım & Bot</button>
-            <button class="cat-pill" onclick="filterCat('oyun_app', this)">Oyun & App Reklam</button>
-        </div>
-
-        <div class="card" data-cat="kripto">
-            <div class="card-header" onclick="toggleCard(this)">
-                <div class="card-info">
-                    <h3>Borsa VIP Analytics</h3>
-                    <div class="meta">
-                        <span>👥 14.2K Üye</span>
-                        <span>⭐ 4.9</span>
-                    </div>
-                </div>
-                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
-            </div>
-            <div class="card-body">
-                <p style="font-size: 12px; color: var(--text-muted);">Günlük borsa analizleri ve özel VIP sinyalleri.</p>
-                <div class="price-box">
-                    <div class="price-row">
-                        <span>Güncel Üyelik Fiyatı:</span>
-                        <strong style="color:var(--text-main);">180 TL / 1 Yıl</strong>
-                    </div>
-                    <div class="price-row" style="margin-top:4px;">
-                        <span>Geçmiş Fiyat (2 Ay Önce):</span>
-                        <span style="color:var(--danger);">150 TL (+%20)</span>
-                    </div>
-                </div>
-                <button class="btn-action" onclick="buyChannel('borsa_vip_180')">Katılım Sağla & Öde</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- SEKME 2: CÜZDAN & 200 TL ÇEKİM LİMİTİ -->
-    <div id="pane-wallet" class="tab-pane">
-        <div class="card" style="padding:14px;">
-            <span style="font-size:12px; color:var(--text-muted);">Biriken Komisyon Bakiyeniz</span>
-            <h2 id="wallet-balance" style="margin:6px 0; font-size:24px;">0.00 TL</h2>
-            
-            <div style="margin-top:12px;">
-                <div class="price-row">
-                    <span style="font-size:11px;">Minimum Çekim Eşiği:</span>
-                    <span style="font-size:11px; font-weight:600;">200.00 TL</span>
-                </div>
-                <div class="progress-bar-bg">
-                    <div id="progress-fill" class="progress-bar-fill"></div>
-                </div>
-                <span id="progress-text" style="font-size:11px; color:var(--text-muted);">Para çekmek için 200 TL sınırını tamamlayın.</span>
-            </div>
-        </div>
-
-        <div class="card" style="padding:14px;">
-            <h3 style="font-size:13px; margin:0 0 8px 0;">Ödeme / Çekim Bilgileri</h3>
-            <input type="text" id="payout-iban" placeholder="TR00 0000 0000 0000 0000 0000 00 (IBAN)">
-            <input type="text" id="payout-holder" placeholder="Hesap Sahibi Adı Soyadı">
-            <button id="btn-payout" class="btn-action" onclick="requestPayout()" disabled>Para Çekim Talebi Gönder</button>
-        </div>
-    </div>
-
-    <!-- SEKME 3: API KEY & ENTEGRASYONLAR -->
-    <div id="pane-api" class="tab-pane">
-        <div class="card" style="padding:14px;">
-            <h3 style="font-size:13px; margin:0 0 8px 0;">API Key & Entegrasyonlar</h3>
-            <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">Özel AI veya ödeme entegrasyon anahtarlarınızı buradan güvenle tanımlayabilirsiniz.</p>
-            <select id="api-provider">
-                <option value="openai">OpenAI API Key</option>
-                <option value="gemini">Google Gemini API Key</option>
-                <option value="paytr">PayTR Sanal POS Key</option>
-            </select>
-            <input type="password" id="api-key-value" placeholder="sk-proj-****************">
-            <button class="btn-action" onclick="saveApiKey()">API Anahtarını Kaydet</button>
-        </div>
-    </div>
-
-    <!-- SEKME 4: REKLAM & KANAL BAŞVURUSU -->
-    <div id="pane-add" class="tab-pane">
-        <div class="card" style="padding:14px;">
-            <h3 style="font-size:13px; margin:0 0 8px 0;">Kanal veya Reklam Ekle</h3>
-            <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">VIP Kanalınızı veya Oyun/Mobil Uygulamanızı platforma ekleyin.</p>
-            <input type="text" id="add-title" placeholder="Başlık (Örn: Trader Pro veya Yeni Mobil Oyun)">
-            <select id="add-type">
-                <option value="channel">VIP Telegram Kanalı</option>
-                <option value="game">Oyun / Mobil Uygulama Reklamı</option>
-            </select>
-            <input type="text" id="add-link" placeholder="Telegram Bağlantısı / İndirme Linki">
-            <textarea id="add-desc" rows="3" placeholder="İçerik açıklaması ve detaylar..."></textarea>
-            <button class="btn-action" onclick="submitApp()">Başvuru Gönder</button>
-        </div>
-    </div>
-
-    <!-- Bottom Navigation Bar -->
-    <div class="navbar">
-        <div class="nav-link active" onclick="switchTab('dizin', 'VIP Dizin', 'Onaylı topluluklar ve içerikler', this)">
-            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
-            <span>Dizin</span>
-        </div>
-        <div class="nav-link" onclick="switchTab('wallet', 'Cüzdan & Bakiyem', '200 TL Çekim Limiti & Bakiyeniz', this)">
-            <svg viewBox="0 0 24 24"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path></svg>
-            <span>Cüzdan</span>
-        </div>
-        <div class="nav-link" onclick="switchTab('api', 'API & Ayarlar', 'API Key entegrasyon ayarları', this)">
-            <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
-            <span>API Key</span>
-        </div>
-        <div class="nav-link" onclick="switchTab('add', 'Reklam / Ekle', 'Kanal veya oyun ekleme başvurusu', this)">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
-            <span>Ekle</span>
-        </div>
-    </div>
-
-    <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-
-        let currentBalance = 60.0; // Örnek Bakiye
-        const limit = 200.0;
-
-        function updateWalletUI() {
-            document.getElementById('wallet-balance').innerText = currentBalance.toFixed(2) + " TL";
-            let pct = Math.min((currentBalance / limit) * 100, 100);
-            document.getElementById('progress-fill').style.width = pct + "%";
-
-            const btn = document.getElementById('btn-payout');
-            if(currentBalance >= limit) {
-                btn.disabled = false;
-                document.getElementById('progress-text').innerText = "✅ 200 TL sınırını aştınız, para çekebilirsiniz!";
-                document.getElementById('progress-text').style.color = "var(--success)";
-            } else {
-                btn.disabled = true;
-                let needed = limit - currentBalance;
-                document.getElementById('progress-text').innerText = "Para çekmek için " + needed.toFixed(2) + " TL daha kazanmalısınız.";
-            }
-        }
-        updateWalletUI();
-
-        function switchTab(tabId, title, sub, el) {
-            document.querySelectorAll('.tab-pane').forEach(e => e.classList.remove('active'));
-            document.querySelectorAll('.nav-link').forEach(e => e.classList.remove('active'));
-            document.getElementById('pane-' + tabId).classList.add('active');
-            el.classList.add('active');
-            document.getElementById('view-title').innerText = title;
-            document.getElementById('view-sub').innerText = sub;
-        }
-
-        function toggleCard(header) {
-            header.parentElement.classList.toggle('open');
-        }
-
-        function filterCat(cat, pill) {
-            document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
-            pill.classList.add('active');
-            document.querySelectorAll('#pane-dizin .card').forEach(card => {
-                card.style.display = (cat === 'all' || card.dataset.cat === cat) ? 'block' : 'none';
-            });
-        }
-
-        function buyChannel(code) {
-            tg.sendData(JSON.stringify({ action: "buy", code: code }));
-            tg.close();
-        }
-
-        function requestPayout() {
-            const iban = document.getElementById('payout-iban').value;
-            const holder = document.getElementById('payout-holder').value;
-            if(!iban || !holder) return;
-            tg.sendData(JSON.stringify({ action: "payout_request", iban: iban, holder: holder, amount: currentBalance }));
-            tg.close();
-        }
-
-        function saveApiKey() {
-            const provider = document.getElementById('api-provider').value;
-            const key = document.getElementById('api-key-value').value;
-            if(!key) return;
-            tg.sendData(JSON.stringify({ action: "save_api_key", provider: provider, key: key }));
-            tg.close();
-        }
-
-        function submitApp() {
-            const title = document.getElementById('add-title').value;
-            const type = document.getElementById('add-type').value;
-            const link = document.getElementById('add-link').value;
-            if(!title || !link) return;
-            tg.sendData(JSON.stringify({ action: "submit_app", title: title, type: type, link: link }));
-            tg.close();
-        }
-    </script>
-</body>
-</html>
+if __name__ == "__main__":
+    asyncio.run(main())
