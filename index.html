@@ -3,278 +3,361 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>VIP Hub & AI Assistant</title>
+    <title>VIP Network & Hub</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
         :root {
-            --bg-color: #0a0a0a;
-            --card-bg: #141414;
-            --border-color: #262626;
-            --text-primary: #f5f5f5;
-            --text-secondary: #a1a1aa;
-            --accent-white: #ffffff;
-            --badge-bg: #27272a;
+            --bg: #09090b;
+            --surface: #141417;
+            --surface-hover: #1f1f23;
+            --border: #27272a;
+            --text-main: #fafafa;
+            --text-muted: #a1a1aa;
+            --accent: #ffffff;
+            --danger: #ef4444;
+            --success: #22c55e;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'Segoe UI', Roboto, sans-serif;
-            background-color: var(--bg-color);
-            color: var(--text-primary);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text-main);
             margin: 0;
-            padding: 16px 16px 80px 16px;
+            padding: 16px 16px 85px 16px;
             -webkit-font-smoothing: antialiased;
         }
 
-        /* Header */
         .header {
-            margin-bottom: 20px;
-            border-bottom: 1px solid var(--border-color);
-            padding-bottom: 12px;
+            padding-bottom: 14px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
         }
 
         .header h1 {
-            font-size: 20px;
+            font-size: 18px;
             font-weight: 600;
             margin: 0;
-            letter-spacing: -0.5px;
+            letter-spacing: -0.02em;
         }
 
         .header p {
-            font-size: 13px;
-            color: var(--text-secondary);
-            margin: 4px 0 0 0;
+            font-size: 12px;
+            color: var(--text-muted);
+            margin: 3px 0 0 0;
         }
 
-        /* Tab Content Control */
-        .tab-content {
+        /* Trendyol Kategori Filtreleri */
+        .category-scroll {
+            display: flex;
+            gap: 8px;
+            overflow-x: auto;
+            padding-bottom: 12px;
+            margin-bottom: 16px;
+            scrollbar-width: none;
+        }
+
+        .category-scroll::-webkit-scrollbar {
             display: none;
         }
-        .tab-content.active {
-            display: block;
+
+        .cat-pill {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            color: var(--text-muted);
+            font-size: 12px;
+            padding: 6px 14px;
+            border-radius: 20px;
+            white-space: nowrap;
+            cursor: pointer;
+            transition: all 0.2s;
         }
 
-        /* Cards & Minimal Components */
-        .card {
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            border-radius: 10px;
-            padding: 14px;
-            margin-bottom: 12px;
-        }
-
-        .card-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 8px;
-        }
-
-        .title {
-            font-size: 15px;
+        .cat-pill.active {
+            background-color: var(--accent);
+            color: #000000;
+            border-color: var(--accent);
             font-weight: 600;
         }
 
-        .badge {
-            background-color: var(--badge-bg);
-            color: var(--text-primary);
-            font-size: 11px;
-            padding: 2px 8px;
-            border-radius: 4px;
-            border: 1px solid var(--border-color);
-            font-weight: 500;
+        /* Accordion Kartlar */
+        .card {
+            background-color: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            margin-bottom: 10px;
+            overflow: hidden;
         }
 
-        .desc {
-            font-size: 13px;
-            color: var(--text-secondary);
-            line-height: 1.4;
-            margin-bottom: 12px;
+        .card-header {
+            padding: 14px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .card-info h3 {
+            margin: 0;
+            font-size: 14px;
+            font-weight: 600;
+        }
+
+        .card-info .meta {
+            font-size: 11px;
+            color: var(--text-muted);
+            margin-top: 4px;
+            display: flex;
+            gap: 12px;
+        }
+
+        .card-body {
+            display: none;
+            padding: 0 14px 14px 14px;
+            border-top: 1px solid var(--border);
+            background-color: rgba(0, 0, 0, 0.2);
+        }
+
+        .card.open .card-body {
+            display: block;
+        }
+
+        .card.open .chevron {
+            transform: rotate(180deg);
+        }
+
+        .chevron {
+            transition: transform 0.2s;
+            stroke: var(--text-muted);
+        }
+
+        .price-box {
+            background: #000000;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 10px;
+            margin: 10px 0;
+            font-size: 12px;
         }
 
         .price-row {
             display: flex;
             justify-content: space-between;
-            align-items: center;
-            border-top: 1px dashed var(--border-color);
-            padding-top: 10px;
-            margin-top: 8px;
+            color: var(--text-muted);
         }
 
-        .price {
-            font-size: 14px;
-            font-weight: 600;
-        }
-
-        .price-change {
-            font-size: 12px;
-            color: #ef4444; /* İnce kırmızı değişim göstergesi */
-        }
-
-        /* Monokrom Butonlar */
-        .btn-primary {
-            background-color: var(--accent-white);
+        .btn-action {
+            width: 100%;
+            background-color: var(--accent);
             color: #000000;
             border: none;
             border-radius: 6px;
             padding: 10px;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
-            width: 100%;
             cursor: pointer;
-            transition: opacity 0.2s;
+            margin-top: 8px;
         }
 
-        .btn-primary:active {
-            opacity: 0.85;
+        .btn-action:disabled {
+            background-color: var(--border);
+            color: var(--text-muted);
+            cursor: not-allowed;
         }
 
-        /* Form Elemanları */
+        /* Cüzdan Progress Bar */
+        .progress-bar-bg {
+            background-color: var(--border);
+            border-radius: 10px;
+            height: 8px;
+            width: 100%;
+            overflow: hidden;
+            margin: 8px 0;
+        }
+
+        .progress-bar-fill {
+            background-color: var(--accent);
+            height: 100%;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
         input, select, textarea {
             width: 100%;
-            background-color: var(--card-bg);
-            border: 1px solid var(--border-color);
-            color: var(--text-primary);
+            background-color: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text-main);
             padding: 10px;
             border-radius: 6px;
-            font-size: 13px;
+            font-size: 12px;
             margin-bottom: 10px;
             box-sizing: border-box;
         }
 
-        input:focus, textarea:focus {
-            outline: 1px solid var(--text-primary);
-        }
-
-        /* Bottom Fixed Navigation Bar */
+        /* SVG Navbar */
         .navbar {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            background-color: #0d0d0d;
-            border-top: 1px solid var(--border-color);
+            background-color: rgba(9, 9, 11, 0.95);
+            backdrop-filter: blur(12px);
+            border-top: 1px solid var(--border);
             display: flex;
             justify-content: space-around;
-            padding: 10px 0;
-            backdrop-filter: blur(10px);
+            padding: 12px 0;
+            z-index: 100;
         }
 
-        .nav-item {
+        .nav-link {
             display: flex;
             flex-direction: column;
             align-items: center;
-            color: var(--text-secondary);
-            font-size: 11px;
-            cursor: pointer;
+            color: var(--text-muted);
+            font-size: 10px;
             text-decoration: none;
-            width: 20%;
+            cursor: pointer;
+            gap: 4px;
+            width: 25%;
         }
 
-        .nav-item.active {
-            color: var(--text-primary);
-            font-weight: 600;
+        .nav-link.active {
+            color: var(--text-main);
         }
 
-        .nav-icon {
-            font-size: 18px;
-            margin-bottom: 2px;
+        .nav-link svg {
+            width: 18px;
+            height: 18px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
         }
     </style>
 </head>
 <body>
 
-    <!-- Top Navigation Header -->
     <div class="header">
-        <h1 id="page-title">VIP Dizin</h1>
-        <p id="page-subtitle">Onaylı topluluklar ve kanallar</p>
+        <h1 id="view-title">VIP Dizin</h1>
+        <p id="view-sub">Onaylı topluluklar ve üye sayıları</p>
     </div>
 
-    <!-- SEKME 1: Dizin & Top 10 -->
-    <div id="tab-dizin" class="tab-content active">
-        <div class="card">
-            <div class="card-header">
-                <span class="title">Borsa & Sinyal VIP</span>
-                <span class="badge">#1 POPÜLER</span>
-            </div>
-            <div class="desc">Günlük teknik analizler, borsa ve kripto sinyal güncellemeleri.</div>
-            <div class="price-row">
-                <span class="price">180 TL / 1 Yıl</span>
-                <button class="btn-primary" style="width: auto; padding: 6px 14px;" onclick="selectChannel('borsa_vip')">İncele</button>
-            </div>
+    <!-- SEKME 1: DİZİN -->
+    <div id="pane-dizin" class="tab-pane active">
+        <div class="category-scroll">
+            <button class="cat-pill active" onclick="filterCat('all', this)">Tümü</button>
+            <button class="cat-pill" onclick="filterCat('kripto', this)">Kripto & Borsa</button>
+            <button class="cat-pill" onclick="filterCat('yazilim', this)">Yazılım & Bot</button>
+            <button class="cat-pill" onclick="filterCat('oyun_app', this)">Oyun & App Reklam</button>
         </div>
 
-        <div class="card">
-            <div class="card-header">
-                <span class="title">Yapay Zeka & Kodlama Kulübü</span>
-                <span class="badge">EĞİTİM</span>
-            </div>
-            <div class="desc">Özel Python bot kodları, Prompt mühendisliği ve yazılım sohbetleri.</div>
-            <div class="price-row">
-                <span class="price">100 TL / Ay</span>
-                <button class="btn-primary" style="width: auto; padding: 6px 14px;" onclick="selectChannel('ai_club')">İncele</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- SEKME 2: Fiyat & Ürün Takibi -->
-    <div id="tab-fiyat" class="tab-content">
-        <div class="card">
-            <div class="card-header">
-                <span class="title">E-Ticaret Saat İlanı #402</span>
-                <span class="badge">ANALİZ</span>
-            </div>
-            <div class="desc">İnceleme: 2 ay önce paylaşılan ürün ile bugünkü fiyat karşılaştırması.</div>
-            <div class="price-row">
-                <div>
-                    <span class="price">120 TL</span> 
-                    <span class="price-change">(Önceki: 100 TL / +%20 Artış)</span>
+        <div class="card" data-cat="kripto">
+            <div class="card-header" onclick="toggleCard(this)">
+                <div class="card-info">
+                    <h3>Borsa VIP Analytics</h3>
+                    <div class="meta">
+                        <span>👥 14.2K Üye</span>
+                        <span>⭐ 4.9</span>
+                    </div>
                 </div>
+                <svg class="chevron" width="16" height="16" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"></polyline></svg>
+            </div>
+            <div class="card-body">
+                <p style="font-size: 12px; color: var(--text-muted);">Günlük borsa analizleri ve özel VIP sinyalleri.</p>
+                <div class="price-box">
+                    <div class="price-row">
+                        <span>Güncel Üyelik Fiyatı:</span>
+                        <strong style="color:var(--text-main);">180 TL / 1 Yıl</strong>
+                    </div>
+                    <div class="price-row" style="margin-top:4px;">
+                        <span>Geçmiş Fiyat (2 Ay Önce):</span>
+                        <span style="color:var(--danger);">150 TL (+%20)</span>
+                    </div>
+                </div>
+                <button class="btn-action" onclick="buyChannel('borsa_vip_180')">Katılım Sağla & Öde</button>
             </div>
         </div>
     </div>
 
-    <!-- SEKME 3: AI Asistan Sohbeti -->
-    <div id="tab-ai" class="tab-content">
-        <div class="card">
-            <div class="title" style="margin-bottom: 8px;">AI Asistana Soru Sor</div>
-            <div class="desc">Kanallar, içerikler veya genel konular hakkında yapay zekadan anlık bilgi al.</div>
-            <textarea id="ai-prompt" rows="3" placeholder="Sormak istediğiniz konuyu yazın..."></textarea>
-            <button class="btn-primary" onclick="sendAiPrompt()">Soru Gönder</button>
+    <!-- SEKME 2: CÜZDAN & 200 TL ÇEKİM LİMİTİ -->
+    <div id="pane-wallet" class="tab-pane">
+        <div class="card" style="padding:14px;">
+            <span style="font-size:12px; color:var(--text-muted);">Biriken Komisyon Bakiyeniz</span>
+            <h2 id="wallet-balance" style="margin:6px 0; font-size:24px;">0.00 TL</h2>
+            
+            <div style="margin-top:12px;">
+                <div class="price-row">
+                    <span style="font-size:11px;">Minimum Çekim Eşiği:</span>
+                    <span style="font-size:11px; font-weight:600;">200.00 TL</span>
+                </div>
+                <div class="progress-bar-bg">
+                    <div id="progress-fill" class="progress-bar-fill"></div>
+                </div>
+                <span id="progress-text" style="font-size:11px; color:var(--text-muted);">Para çekmek için 200 TL sınırını tamamlayın.</span>
+            </div>
+        </div>
+
+        <div class="card" style="padding:14px;">
+            <h3 style="font-size:13px; margin:0 0 8px 0;">Ödeme / Çekim Bilgileri</h3>
+            <input type="text" id="payout-iban" placeholder="TR00 0000 0000 0000 0000 0000 00 (IBAN)">
+            <input type="text" id="payout-holder" placeholder="Hesap Sahibi Adı Soyadı">
+            <button id="btn-payout" class="btn-action" onclick="requestPayout()" disabled>Para Çekim Talebi Gönder</button>
         </div>
     </div>
 
-    <!-- SEKME 4: Kanal Ekleme Başvurusu -->
-    <div id="tab-ekle" class="tab-content">
-        <div class="card">
-            <div class="title" style="margin-bottom: 10px;">Kanalını Sisteme Ekle</div>
-            <input type="text" id="chan-title" placeholder="Kanal Başlığı">
-            <input type="text" id="chan-link" placeholder="Kanal Kullanıcı Adı (@kanaladi)">
-            <select id="chan-cat">
-                <option value="kripto">Kripto / Borsa</option>
-                <option value="yazilim">Yazılım / Teknoloji</option>
-                <option value="e-ticaret">E-Ticaret / Fırsat</option>
+    <!-- SEKME 3: API KEY & ENTEGRASYONLAR -->
+    <div id="pane-api" class="tab-pane">
+        <div class="card" style="padding:14px;">
+            <h3 style="font-size:13px; margin:0 0 8px 0;">API Key & Entegrasyonlar</h3>
+            <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">Özel AI veya ödeme entegrasyon anahtarlarınızı buradan güvenle tanımlayabilirsiniz.</p>
+            <select id="api-provider">
+                <option value="openai">OpenAI API Key</option>
+                <option value="gemini">Google Gemini API Key</option>
+                <option value="paytr">PayTR Sanal POS Key</option>
             </select>
-            <textarea id="chan-desc" rows="2" placeholder="Kanal Hakkında Kısa Açıklama"></textarea>
-            <button class="btn-primary" onclick="submitChannel()">Başvuru Yap</button>
+            <input type="password" id="api-key-value" placeholder="sk-proj-****************">
+            <button class="btn-action" onclick="saveApiKey()">API Anahtarını Kaydet</button>
         </div>
     </div>
 
-    <!-- Fixed Bottom Navigation Bar -->
+    <!-- SEKME 4: REKLAM & KANAL BAŞVURUSU -->
+    <div id="pane-add" class="tab-pane">
+        <div class="card" style="padding:14px;">
+            <h3 style="font-size:13px; margin:0 0 8px 0;">Kanal veya Reklam Ekle</h3>
+            <p style="font-size:11px; color:var(--text-muted); margin-bottom:12px;">VIP Kanalınızı veya Oyun/Mobil Uygulamanızı platforma ekleyin.</p>
+            <input type="text" id="add-title" placeholder="Başlık (Örn: Trader Pro veya Yeni Mobil Oyun)">
+            <select id="add-type">
+                <option value="channel">VIP Telegram Kanalı</option>
+                <option value="game">Oyun / Mobil Uygulama Reklamı</option>
+            </select>
+            <input type="text" id="add-link" placeholder="Telegram Bağlantısı / İndirme Linki">
+            <textarea id="add-desc" rows="3" placeholder="İçerik açıklaması ve detaylar..."></textarea>
+            <button class="btn-action" onclick="submitApp()">Başvuru Gönder</button>
+        </div>
+    </div>
+
+    <!-- Bottom Navigation Bar -->
     <div class="navbar">
-        <div class="nav-item active" onclick="switchTab('dizin', 'VIP Dizin', 'Onaylı topluluklar ve kanallar', this)">
-            <span class="nav-icon">📂</span>
+        <div class="nav-link active" onclick="switchTab('dizin', 'VIP Dizin', 'Onaylı topluluklar ve içerikler', this)">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
             <span>Dizin</span>
         </div>
-        <div class="nav-item" onclick="switchTab('fiyat', 'Fiyat Takibi', 'Tarihsel ürün ve fiyat değişimleri', this)">
-            <span class="nav-icon">📊</span>
-            <span>Fiyatlar</span>
+        <div class="nav-link" onclick="switchTab('wallet', 'Cüzdan & Bakiyem', '200 TL Çekim Limiti & Bakiyeniz', this)">
+            <svg viewBox="0 0 24 24"><path d="M20 12V8H6a2 2 0 0 1-2-2c0-1.1.9-2 2-2h12v4"></path><path d="M4 6v12c0 1.1.9 2 2 2h14v-4"></path><path d="M18 12a2 2 0 0 0-2 2c0 1.1.9 2 2 2h4v-4h-4z"></path></svg>
+            <span>Cüzdan</span>
         </div>
-        <div class="nav-item" onclick="switchTab('ai', 'AI Asistan', 'Yapay zeka ile anlık sohbet', this)">
-            <span class="nav-icon">🤖</span>
-            <span>AI Chat</span>
+        <div class="nav-link" onclick="switchTab('api', 'API & Ayarlar', 'API Key entegrasyon ayarları', this)">
+            <svg viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+            <span>API Key</span>
         </div>
-        <div class="nav-item" onclick="switchTab('ekle', 'Kanal Ekle', 'Kendi VIP kanalını dizine ekle', this)">
-            <span class="nav-icon">➕</span>
+        <div class="nav-link" onclick="switchTab('add', 'Reklam / Ekle', 'Kanal veya oyun ekleme başvurusu', this)">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
             <span>Ekle</span>
         </div>
     </div>
@@ -283,37 +366,75 @@
         const tg = window.Telegram.WebApp;
         tg.expand();
 
-        function switchTab(tabId, title, subtitle, element) {
-            // Tüm sekmeleri gizle
-            document.querySelectorAll('.tab-content').forEach(el => el.classList.remove('active'));
-            document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+        let currentBalance = 60.0; // Örnek Bakiye
+        const limit = 200.0;
 
-            // Seçilen sekmeyi göster
-            document.getElementById('tab-' + tabId).classList.add('active');
-            element.classList.add('active');
+        function updateWalletUI() {
+            document.getElementById('wallet-balance').innerText = currentBalance.toFixed(2) + " TL";
+            let pct = Math.min((currentBalance / limit) * 100, 100);
+            document.getElementById('progress-fill').style.width = pct + "%";
 
-            // Başlıkları değiştir
-            document.getElementById('page-title').innerText = title;
-            document.getElementById('page-subtitle').innerText = subtitle;
+            const btn = document.getElementById('btn-payout');
+            if(currentBalance >= limit) {
+                btn.disabled = false;
+                document.getElementById('progress-text').innerText = "✅ 200 TL sınırını aştınız, para çekebilirsiniz!";
+                document.getElementById('progress-text').style.color = "var(--success)";
+            } else {
+                btn.disabled = true;
+                let needed = limit - currentBalance;
+                document.getElementById('progress-text').innerText = "Para çekmek için " + needed.toFixed(2) + " TL daha kazanmalısınız.";
+            }
+        }
+        updateWalletUI();
+
+        function switchTab(tabId, title, sub, el) {
+            document.querySelectorAll('.tab-pane').forEach(e => e.classList.remove('active'));
+            document.querySelectorAll('.nav-link').forEach(e => e.classList.remove('active'));
+            document.getElementById('pane-' + tabId).classList.add('active');
+            el.classList.add('active');
+            document.getElementById('view-title').innerText = title;
+            document.getElementById('view-sub').innerText = sub;
         }
 
-        function selectChannel(code) {
-            tg.sendData(JSON.stringify({ action: "buy", channel: code }));
+        function toggleCard(header) {
+            header.parentElement.classList.toggle('open');
+        }
+
+        function filterCat(cat, pill) {
+            document.querySelectorAll('.cat-pill').forEach(p => p.classList.remove('active'));
+            pill.classList.add('active');
+            document.querySelectorAll('#pane-dizin .card').forEach(card => {
+                card.style.display = (cat === 'all' || card.dataset.cat === cat) ? 'block' : 'none';
+            });
+        }
+
+        function buyChannel(code) {
+            tg.sendData(JSON.stringify({ action: "buy", code: code }));
             tg.close();
         }
 
-        function sendAiPrompt() {
-            const prompt = document.getElementById('ai-prompt').value;
-            if(!prompt) return;
-            tg.sendData(JSON.stringify({ action: "ai_ask", prompt: prompt }));
+        function requestPayout() {
+            const iban = document.getElementById('payout-iban').value;
+            const holder = document.getElementById('payout-holder').value;
+            if(!iban || !holder) return;
+            tg.sendData(JSON.stringify({ action: "payout_request", iban: iban, holder: holder, amount: currentBalance }));
             tg.close();
         }
 
-        function submitChannel() {
-            const title = document.getElementById('chan-title').value;
-            const link = document.getElementById('chan-link').value;
+        function saveApiKey() {
+            const provider = document.getElementById('api-provider').value;
+            const key = document.getElementById('api-key-value').value;
+            if(!key) return;
+            tg.sendData(JSON.stringify({ action: "save_api_key", provider: provider, key: key }));
+            tg.close();
+        }
+
+        function submitApp() {
+            const title = document.getElementById('add-title').value;
+            const type = document.getElementById('add-type').value;
+            const link = document.getElementById('add-link').value;
             if(!title || !link) return;
-            tg.sendData(JSON.stringify({ action: "add_channel", title: title, link: link }));
+            tg.sendData(JSON.stringify({ action: "submit_app", title: title, type: type, link: link }));
             tg.close();
         }
     </script>
